@@ -25,3 +25,4 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 ## Notes
 
 - By placing the settings in the simulated EEProm, the device can rrun "headless".
+- Whilst the sketch will run as a test, the source files can be used as a library in another sketch.
