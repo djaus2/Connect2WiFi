@@ -47,7 +47,7 @@ bool Prompt4WiFiConfigData();
 void WiFiSet(String ssid, String pwd, String hostname);
 
 // Orchestrate WiFi Connection
-bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool bwrite2eeprom);
+bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool debug);
 
 
 #endif
