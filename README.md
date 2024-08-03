@@ -9,6 +9,7 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 - Connect with embedded settings in Header
 - Prompt for settings over Serial
 - Prompt for settings over Bluetooth
+- Call with settings as parameters
 - _(Further)_ Option to use Serial debug nessages (which is blocking) or not.
 
 #### * EEProm Format
@@ -30,9 +31,19 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
   - Will be prompted in Bluetooth terminal for settings.
   - I use a Bluetooth terminal on an Android Phone:
     - [Serial Bluetooth Terminal](https://play.google.com/store/apps/details?id=de.kai_morich.serial_bluetooth_terminal&hl=en_US)  _from GooglePlay._
+- Suggest using this sketch to set EEProm
 
 ## Using in another Sketch
 
 - Add the 2 files
 - #include the the header file in target sketch source file where used.
-- 
+- Call WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool debug)
+  - ConnectMode:
+    - wifi_is_set
+      - Call WiFiSet(String ssid, String pwd, String hostname) first  
+    - from_eeprom
+    - is_defined
+      - Use values defined in header
+    - serial_prompt
+    -   bt_prompt
+- _If Serial is used but not started  when WiFiConnectwithOptions() is called, then baud is used in starting it._
