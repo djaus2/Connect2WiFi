@@ -30,3 +30,9 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
   - Will be prompted in Bluetooth terminal for settings.
   - I use a Bluetooth terminal on an Android Phone:
     - [Serial Bluetooth Terminal](https://play.google.com/store/apps/details?id=de.kai_morich.serial_bluetooth_terminal&hl=en_US)  _from GooglePlay._
+
+## Using in another Sketch
+
+- Add the 2 files
+- #include the the header file in target sketch source file where used.
+- 
