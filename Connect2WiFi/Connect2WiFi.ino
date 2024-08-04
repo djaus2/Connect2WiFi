@@ -12,8 +12,10 @@ char eeprom[EEPROM_SIZE] = {0};
 String Ssid="";
 String Passwd="";
 String Hostname=DEFAULT_HOSTNAME;
+String IoTHubDeviceConnectionString=DEFAULT_DEVICECONNECTIONSTRING;
 
 bool bSerialDebug = false;
+bool bUseIoTHub = false;
 
 // WiFi connect with current settings
 bool WiFiConnect()
@@ -26,6 +28,11 @@ bool WiFiConnect()
       Serial.println(Passwd);
       Serial.print("Hostname:");
       Serial.println(Hostname);
+      if(bUseIoTHub)
+      {
+        Serial.print("DeviceConnectionString:");
+        Serial.println(IoTHubDeviceConnectionString);
+      }
 
       Serial.println("Connecting to WiFi");
     }
@@ -45,7 +52,7 @@ bool WiFiConnect()
     if(bSerialDebug)
     {
       Serial.println();
-      Serial.println("Connnected.");
+      Serial.println("Connected.");
     }
     
     //print the local IP address
@@ -83,7 +90,7 @@ bool BtWiFiConnect()
       delay(250);
     }
     SerialBT.println();
-    SerialBT.println("Connnected.");
+    SerialBT.println("Connected.");
     
     //print the local IP address
     IPAddress ip = WiFi.localIP();
@@ -100,12 +107,23 @@ bool ReadWiFiDataFromEEProm()
   int split = data.indexOf('-');
   int split2 = data.indexOf('-',split+1);
 
+
+
   Ssid = data.substring(0,split);
   Ssid.trim();
   Passwd = data.substring(split+1,split2);
   Passwd.trim();
   Hostname = data.substring(split2+1,data.length());
   Hostname.trim();
+
+  if(bUseIoTHub)
+  {
+    int split3 = data.indexOf('-',split2+1);
+    Hostname = data.substring(split2+1,split3);
+    Hostname.trim();
+    IoTHubDeviceConnectionString = data.substring(split3+1,data.length());
+    IoTHubDeviceConnectionString.trim();
+  }
 
   return WiFiConnect();
 }
@@ -134,6 +152,17 @@ bool BTPrompt4WiFiConfigData()
   val.trim();
   if (val.length()!=0)
     Hostname=val;
+  
+  if(bUseIoTHub)
+  {
+    SerialBT.print("Enter IoT Hub Connection String. Default ");
+    SerialBT.print(IoTHubDeviceConnectionString);
+    while (SerialBT.available() == 0) {}
+    String val = SerialBT.readString();
+    val.trim();
+    if (val.length()!=0)
+      IoTHubDeviceConnectionString=val;
+  }
 
   return BtWiFiConnect();
 }
@@ -165,16 +194,28 @@ bool Prompt4WiFiConfigData()
   val.trim();
   if (val.length()!=0)
     Hostname=val;
+  
+  if(bUseIoTHub)
+  {
+    Serial.print("Enter IoT Hub Connection String. Default ");
+    Serial.print(IoTHubDeviceConnectionString);
+    while (Serial.available() == 0) {}
+    String val = Serial.readString();
+    val.trim();
+    if (val.length()!=0)
+      IoTHubDeviceConnectionString=val;
+  }
 
   return BtWiFiConnect();
 }
 
 // Software set connection settings
-void WiFiSet(String ssid, String pwd, String hostname)
+void WiFiSet(String ssid, String pwd, String hostname, String deviceconnectionString )
 {
   Ssid = ssid;
   Passwd = pwd;
   Hostname = hostname;
+  IoTHubDeviceConnectionString = deviceconnectionString;
 }
 
 // Write data to EEProm but require user notification
@@ -185,6 +226,10 @@ bool Write2EEPromwithPrompt()
   Serial.println("Writing key to EEProm");
   writeKey();
   String WiFiData = Ssid +'-'+ Passwd + "-" + Hostname;
+  if(bUseIoTHub)
+  {
+    WiFiData += "-" + IoTHubDeviceConnectionString;
+  }
   Serial.print("Writing WiFi Config Data to EEProm: ");
   Serial.println(WiFiData);
 
@@ -201,9 +246,10 @@ bool Write2EEPromwithPrompt()
 }
 
 // Orchestrate WiFi Connection
-bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool debug) 
+bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool useIoTHub, bool debug) 
 {
   bSerialDebug = debug;
+  bUseIoTHub = useIoTHub;
 
   if(bSerialDebug)
   {
@@ -280,7 +326,7 @@ bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool debug)
       }
       break;
     case is_defined:
-      WiFiSet(DEFAULT_SSID, DEFAULT_PASSWORD, DEFAULT_HOSTNAME);    
+      WiFiSet(DEFAULT_SSID, DEFAULT_PASSWORD, DEFAULT_HOSTNAME, DEFAULT_DEVICECONNECTIONSTRING);    
       return WiFiConnect();
       break;
     case serial_prompt:
@@ -358,9 +404,9 @@ void setup()
   delay(1000);
 
   // enum ConnectMode: byte {wifi_is_set, from_eeprom, is_defined, serial_prompt, bt_prompt };
-  ConnectMode _connectMode = bt_prompt;
+  ConnectMode _connectMode = from_eeprom;
 
-  test = WiFiConnectwithOptions(115200,_connectMode,_serialDebug);
+  test = WiFiConnectwithOptions(115200,_connectMode,true, _serialDebug);
   pinMode(LED_BUILTIN, OUTPUT);
   if(test)
     del = 250;

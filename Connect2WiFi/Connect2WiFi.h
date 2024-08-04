@@ -5,6 +5,7 @@
 #define DEFAULT_PASSWORD "tallinn187isnotinaustralia"
 #define DEFAULT_HOSTNAME "picow"
 #define DEFAULT_BT_NAME "picow SoftataOTA 00:00:00:00:00:00"
+#define DEFAULT_DEVICECONNECTIONSTRING "HostName=picow.azure-devices.net;DeviceId=picow;SharedAccessKey=0"
 
 // In test sketc:
 #define ENABLE_SERIAL_AT_START true
@@ -44,10 +45,10 @@ bool ReadWiFiDataFromEEProm();
 bool Prompt4WiFiConfigData();
 
 // Software set connection settings and connect
-void WiFiSet(String ssid, String pwd, String hostname);
+void WiFiSet(String ssid, String pwd, String hostname, String deviceconnectionString );
 
 // Orchestrate WiFi Connection
-bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool debug);
+bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool iothub, bool debug);
 
 
 #endif
