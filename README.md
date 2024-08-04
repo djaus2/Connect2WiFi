@@ -4,10 +4,12 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 
 ----
 
-## Update
+## Updates
 
-- Azure IoT Hub Device Connection String added.
+1. Azure IoT Hub Device Connection String added.
   - Can flash it and read from flash etc.
+2. Refactored to code so as to use a namespace for functional code
+ - Simplifies reuse
 
 ---
 
@@ -46,9 +48,9 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 
 ## Using in another Sketch
 
-- Add the 2 files
-- #include the the header file in target sketch source file where used.
-- Call WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool debug)
+- Add the header file and the .cpp files only
+- #include the the header file  in target sketch source file where used.
+- Call FlashStorage::WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool debug)
   - ConnectMode:
     - wifi_is_set
       - Call WiFiSet(String ssid, String pwd, String hostname) first  

@@ -7,17 +7,16 @@
 #define DEFAULT_BT_NAME "picow SoftataOTA 00:00:00:00:00:00"
 #define DEFAULT_DEVICECONNECTIONSTRING "HostName=picow.azure-devices.net;DeviceId=picow;SharedAccessKey=0"
 
-// In test sketc:
-#define ENABLE_SERIAL_AT_START true
-
 #define EEPROM_SIZE 256
 
 // Key is used to see if the WiFi data has been written to the EEProm
 #define KEY  "1370"
 #define KEYLENGTH 4
 
+enum ConnectMode: byte {wifi_is_set, from_eeprom, is_defined, wifiset, serial_prompt, bt_prompt };
 
 
+namespace FlashStorage{
 // Read key (in first 4 bytes ) and check
 bool readKey();
 // Write key in first 4 bytes
@@ -33,7 +32,7 @@ static const char *ConnectMode_STR[] = {
     "wifi_is_set", "from_eeprom", "is_defined", "wifiset", "serial_prompt", "bt_prompt" 
 };
 
-enum ConnectMode: byte {wifi_is_set, from_eeprom, is_defined, wifiset, serial_prompt, bt_prompt };
+const char * GetDeviceConnectionString();
 
 // WiFi connect with current settings
 bool WiFiConnect();
@@ -49,6 +48,6 @@ void WiFiSet(String ssid, String pwd, String hostname, String deviceconnectionSt
 
 // Orchestrate WiFi Connection
 bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool iothub, bool debug);
-
+}
 
 #endif
