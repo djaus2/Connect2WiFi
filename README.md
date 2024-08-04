@@ -2,6 +2,15 @@
 
 Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 
+----
+
+## Update
+
+- Azure IoT Hub Device Connection String added.
+  - Can flash it and read from flash etc.
+
+---
+
 ## Options
 
 - Connect from EEProm (simulated) settings
@@ -11,6 +20,8 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 - Prompt for settings over Bluetooth
 - Call with settings as parameters
 - _(Further)_ Option to use Serial debug nessages (which is blocking) or not.
+
+
 
 #### * EEProm Format
 
