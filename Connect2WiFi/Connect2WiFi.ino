@@ -129,7 +129,7 @@ bool ReadWiFiDataFromEEProm()
 }
 
 // Prompt user for WiFi connection details
-// Assumes is BT connected
+// Assumes BT is connected
 bool BTPrompt4WiFiConfigData()
 {
   //Get SSID     
