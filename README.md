@@ -1,6 +1,6 @@
 # Connect2WiFi - Arduino
 
-Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
+Various options for connect to a RPi Pico W with Arduino BSP to WiFi. Used in Softa-ata _(Needs an update for latest changes here.)_
 
 ----
 
@@ -10,6 +10,8 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
   - Can flash it and read from flash etc.
 2. Refactored to code so as to use a namespace for functional code
  - Simplifies reuse
+3. Refactored code again so is simple to add additional data entities to be stored
+  - Also Pipe | is used as delimeter instead of minus - as that is is used in some datas.
 
 ---
 
@@ -21,7 +23,7 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 - Prompt for settings over Serial
 - Prompt for settings over Bluetooth
 - Call with settings as parameters
-- _(Further)_ Option to use Serial debug nessages (which is blocking) or not.
+- _(Further)_ Option to use Serial debug messages (which is blocking) or not.
 
 
 
@@ -29,7 +31,8 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 
 - 256 bytes in flash reserved for this
 - First 4 bytes are a key, _(see header)_, used to detect if settings have been written.
-- Format after key is &lt;SSID&gt;-&lt;Password&gt;-&lt;Hostname&gt;
+- Format after key is |&lt;SSID&gt;|&lt;Password&gt;|&lt;Hostname&gt;|&lt;AzureIoTHubConnectionString&gt;|&lt;Guid&gt;|
+  
 
 ## Provisioning a RPi Pico W with Arduino
 
@@ -38,7 +41,7 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi.
 
 ## Notes
 
-- By placing the settings in the simulated EEProm, the device can rrun "headless".
+- By placing the settings in the simulated EEProm, the device can run "headless".
 - Whilst the sketch will run as a test, the source files can be used as a library in another sketch.
 - If Using Bluetooth option, start device, pair from a Bluetooth Terminal, send a blank message to start.
   - Will be prompted in Bluetooth terminal for settings.
