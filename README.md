@@ -48,6 +48,7 @@ Various options for connect to a RPi Pico W with Arduino BSP to WiFi. Used in So
   - I use a Bluetooth terminal on an Android Phone:
     - [Serial Bluetooth Terminal](https://play.google.com/store/apps/details?id=de.kai_morich.serial_bluetooth_terminal&hl=en_US)  _from GooglePlay._
 - Suggest using this sketch to set EEProm
+- There is an issue with the flash suggesting File Storage alternative. See comments on GitHub [here](https://github.com/earlephilhower/arduino-pico/discussions/2312#discussioncomment-10235870).
 
 ## Using in another Sketch
 
