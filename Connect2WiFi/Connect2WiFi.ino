@@ -56,10 +56,18 @@ void setup()
   // enum ConnectMode: byte {wifi_is_set, from_eeprom, is_defined, serial_prompt, bt_prompt };
   ConnectMode _connectMode = from_eeprom;
 
-  test = FlashStorage::WiFiConnectwithOptions(115200,_connectMode,true, _serialDebug);
+  test = FlashStorage::WiFiConnectwithOptions(115200,_connectMode,true,true, _serialDebug);
   pinMode(LED_BUILTIN, OUTPUT);
   if(test)
+  {
     del = 250;
+    if(Serial)Serial.println("Test Passed");
+  }
+  else
+  {
+    del=2500;
+    if(Serial)Serial.println("Test Failed");
+  }
 }
 
 void loop()

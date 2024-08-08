@@ -4,16 +4,18 @@
 #include <SerialBT.h>
 #include "Connect2WiFi.h"
 
-// Anonymous (Makes it privateto this file.):
+// Anonymous (Makes it private to this file.):
 namespace{
   //Current Connection details
-  String Ssid="DEFAULT_SSID";
-  String Passwd="DEFAULT_PASSWORD";
+  String Ssid=DEFAULT_SSID;
+  String Passwd=DEFAULT_PASSWORD;
   String Hostname=DEFAULT_HOSTNAME;
   String IoTHubDeviceConnectionString=DEFAULT_DEVICECONNECTIONSTRING;
+  String Guid=DEFAULT_GUID;
 
   bool bSerialDebug = false;
   bool bUseIoTHub = false;
+  bool bIncludeGuid = false;
 
   char eeprom[EEPROM_SIZE] = {0};
 }
@@ -26,6 +28,279 @@ namespace FlashStorage{
   {
     return IoTHubDeviceConnectionString.c_str();
   }
+
+  const char * GetDeviceGuidString()
+  {
+    return Guid.c_str();
+  }
+
+  /////////////////////////////////////////////////////////////////////
+  // Third Level: Low level read and write EEProm data as strings
+  /////////////////////////////////////////////////////////////////////
+  bool writeWiFi(String Msg,int start)
+  {
+    if(Serial) Serial.println("Writing now.");
+    EEPROM.begin(EEPROM_SIZE);
+    char * msg = const_cast<char*>(Msg.c_str());
+    if ((strlen(msg) )> EEPROM_SIZE )
+    {
+      if(Serial) Serial.println("Message is too big");
+      return false;
+    }
+    int len = strlen(msg);
+    for(int i=0; i < len; i++)
+    {
+      byte val = (byte)msg[i];
+      EEPROM.write(start + i, val);
+      delay(100); 
+    }
+    Serial.println("\0");
+    EEPROM.write(start + len, 0);
+    if (EEPROM.commit()) {
+      if(Serial) Serial.println("EEPROM successfully committed");
+    } else {
+      if(Serial) Serial.println("ERROR! EEPROM commit failed");
+    }
+    EEPROM.end();
+    return true;
+  }
+
+  String readWiFi(int start)
+  {
+    EEPROM.begin(EEPROM_SIZE);
+    int address = start;
+    byte value = 0;
+    String target ="";
+    while (((value = EEPROM.read(address++))!= 0) && (address < EEPROM_SIZE))
+    {
+      char ch = (char)value;
+      target += ch;
+      delay(100);
+    }
+    target.trim();
+    EEPROM.end();
+    return target;
+  }
+  /////////////////////////////////////////////////////////////////////
+
+
+  /////////////////////////////////////////////////////////////////////
+  // Second Level: General purpose read and write of string array data
+  /////////////////////////////////////////////////////////////////////
+  bool ReadStringArrayFromEEProm(String vals[])
+  {
+    String datas  = readWiFi(KEYLENGTH);
+    
+    if(Serial)
+    {
+      Serial.print("EEProm Data: ");
+      Serial.println(datas);
+    }
+    int length =  datas.length();
+
+    // String should begin and end with SEP_CHAR
+    if(datas[0] != SEP_CHAR)
+    {
+      if(Serial)
+        Serial.println("No first -");
+      return false;
+    }
+    if(datas[length-1] != SEP_CHAR)
+    {
+      if(Serial)
+        Serial.println("No last -");
+      return false;
+    };
+    //Nb: There is a leading separator in the string and one after each value.
+    int splits[NUM_STORED_VALUES+1];
+    int numParts = 1;
+    splits[0] = 0;
+    for (int i=1;i<NUM_STORED_VALUES;i++)
+    {
+      int split = datas.indexOf(SEP_CHAR,splits[i-1] +1 );
+      if (split == -1)
+        break;
+      splits[i] = split;
+      splits[i+1]= length-1;
+      numParts++;
+    }
+    for (int i=0;i<NUM_STORED_VALUES; i++)
+    {
+      vals[i] = datas.substring(splits[i]+1,splits[i+1]);
+      vals[i].trim();
+    }
+    if(Serial)
+      Serial.println("Done EEProm Read of Data.");
+    return true;
+  }
+
+  bool WriteStringArray2EEProm(String datas[])
+  {
+    if (!bSerialDebug) 
+      return false;
+    if(Serial)
+      Serial.println("Writing key to EEProm");
+    writeKey();
+    String WiFiData = "";
+    WiFiData +=  SEP_CHAR;
+    for (int i=0;i<NUM_STORED_VALUES;i++)
+    {
+      WiFiData += datas[i] + SEP_CHAR;
+    }
+    if(Serial)
+    {
+      Serial.print("Writing WiFi Config Data to EEProm: ");
+      Serial.println(WiFiData);
+    }
+    String vals[NUM_STORED_VALUES];
+    bool res = writeWiFi(WiFiData,KEYLENGTH);
+    if(res)
+    {
+      res = ReadStringArrayFromEEProm(vals);
+    }
+    if(!res)
+    {
+      return false;
+    }
+    for (int i=0;i<NUM_STORED_VALUES;i++)
+    {
+      if (vals[i] != datas[i])
+        return false;
+    }
+    if(Serial)
+      Serial.println("Done EEProm Write of Data.");
+    return true;
+  }
+  /////////////////////////////////////////////////////////////////////
+
+  /////////////////////////////////////////////////////////////////////
+  // Top level: Read/Write as entities
+  /////////////////////////////////////////////////////////////////////
+
+  // Read connection details for EEProm
+  bool ReadWiFiDataFromEEProm()
+  {
+    String vals[NUM_STORED_VALUES];
+    bool res = ReadStringArrayFromEEProm(vals);
+    if(!res)
+    {
+      return false;
+    }
+
+    Ssid = vals[0];
+    Passwd = vals[1];
+    Hostname = vals[2];
+
+    bUseIoTHub=false;
+    bIncludeGuid=false;
+    // Next IS IoTHub
+    if(vals[3]!= "")
+    {
+      bUseIoTHub=true;
+      IoTHubDeviceConnectionString = vals[3];
+    }
+    // Next is Guid (order matters)
+    // Could test 4 an5 with Guid String Parse. 2Do
+    // If no IOT Hub expect a dummy vlue for it.
+    if(vals[4]!= "")
+    {
+      bIncludeGuid=true;
+      Guid = vals[4];
+    }
+    return true;
+  }
+
+    // Write data to EEProm but require user notification
+  bool Write2EEPromwithPrompt()
+  {
+    if (!bSerialDebug) 
+      return false;
+    
+    Serial.println("Writing key to EEProm");
+    
+    writeKey();
+    
+    String vals[NUM_STORED_VALUES];
+    vals[0] = Ssid;
+    vals[1] = Passwd;
+    vals[2] = Hostname;
+    vals[3] = IoTHubDeviceConnectionString;
+    vals[4] = Guid;;
+    
+    bool res = WriteStringArray2EEProm(vals);
+
+    if(!res)
+      return false;
+    
+    // Test EEProm data
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      WiFi.disconnect();
+      delay(200);
+    }
+    res = ReadWiFiDataFromEEProm();
+    if(res)
+    {
+      res = WiFiConnect();
+    }
+    return res;
+  }
+
+  /////////////////////////////////////////////////////////////////////
+
+  /////////////////////////////////////////////////////////////////////
+  // Keys: Read and write keys (First 4 bytes)
+  /////////////////////////////////////////////////////////////////////
+  // First 4 bytes of EEProm are the key.
+  // Data string follows in the storage.
+  // Used to indicate if data has been written.
+  // If format changes need to change the key string in the header.
+  ///////////////
+  void writeKey()
+  {
+    String key = KEY;
+    EEPROM.begin(EEPROM_SIZE);
+    char * msg = const_cast<char*>(key.c_str());
+    int len = KEYLENGTH;
+    for(int i=0; i < len; i++)
+    {
+      byte val = (byte)msg[i];
+      EEPROM.write(i, val);
+      delay(100); 
+    }
+    EEPROM.write(len, 0);
+    if (EEPROM.commit()) {
+      Serial.println("EEPROM key write successfully committed");
+    } else {
+      Serial.println("ERROR! EEPROM key write commit failed");
+    }
+    EEPROM.end();
+  }
+
+  bool readKey()
+  {
+    String key = KEY;
+    EEPROM.begin(EEPROM_SIZE);
+    int address = 0;
+    byte value = 0;
+    String target ="";
+    for (int i=0;i< KEYLENGTH;i++)
+    {
+      byte value  = EEPROM.read(i);
+      char ch = (char)value;
+      target += ch;
+      delay(100);
+    }
+    target.trim();
+    EEPROM.end();
+    if (target==key)
+      return true;
+    else
+      return false;
+  }
+  ////////////////////////////////////////////////////////////////////
+
+
 
   // WiFi connect with current settings
   bool WiFiConnect()
@@ -43,10 +318,14 @@ namespace FlashStorage{
           Serial.print("DeviceConnectionString:");
           Serial.println(IoTHubDeviceConnectionString);
         }
+        if(bIncludeGuid)
+        {
+          Serial.print("Guid:");
+          Serial.println(Guid);
+        }
 
         Serial.println("Connecting to WiFi");
       }
-
       WiFi.mode(WIFI_STA);
       WiFi.setHostname(Hostname.c_str());
       WiFi.begin(Ssid.c_str(), Passwd.c_str());
@@ -109,34 +388,7 @@ namespace FlashStorage{
       return true;
   }
 
-  // Read connection details for EEProm
-  bool ReadWiFiDataFromEEProm()
-  {
-    String data  = readWiFi(KEYLENGTH);
-    data.trim();
-    int split = data.indexOf('-');
-    int split2 = data.indexOf('-',split+1);
 
-
-
-    Ssid = data.substring(0,split);
-    Ssid.trim();
-    Passwd = data.substring(split+1,split2);
-    Passwd.trim();
-    Hostname = data.substring(split2+1,data.length());
-    Hostname.trim();
-
-    if(bUseIoTHub)
-    {
-      int split3 = data.indexOf('-',split2+1);
-      Hostname = data.substring(split2+1,split3);
-      Hostname.trim();
-      IoTHubDeviceConnectionString = data.substring(split3+1,data.length());
-      IoTHubDeviceConnectionString.trim();
-    }
-
-    return WiFiConnect();
-  }
 
   // Prompt user for WiFi connection details
   // Assumes BT is connected
@@ -174,11 +426,32 @@ namespace FlashStorage{
       String val = SerialBT.readString();
       val.trim();
       if (val.length()!=0)
-        IoTHubDeviceConnectionString=val;
+        IoTHubDeviceConnectionString=val; 
       Serial.println();
     }
+    else
+    {
+      IoTHubDeviceConnectionString="";
+    }
 
-    return BtWiFiConnect();
+
+    if(bIncludeGuid)
+    {
+      SerialBT.print("Enter Guid. Default ");
+      SerialBT.print(Guid);
+      while (SerialBT.available() == 0) {}
+      String val = SerialBT.readString();
+      val.trim();
+      if (val.length()!=0)
+        Guid=val;
+      Serial.println();
+    }
+    else
+    {
+      Guid="";
+    }
+
+     return true;
   }
 
   // Prompt user for WiFi connection details
@@ -222,52 +495,54 @@ namespace FlashStorage{
       if (val.length()!=0)
         IoTHubDeviceConnectionString=val;
       Serial.println();
+      Serial.println(IoTHubDeviceConnectionString);
+    }
+    else
+    {
+      IoTHubDeviceConnectionString="";
     }
 
-    return BtWiFiConnect();
+    if(bIncludeGuid)
+    {
+      Serial.print("Enter Guid. Default ");
+      Serial.print(Guid);
+      while (Serial.available() == 0) {}
+      String val = Serial.readString();
+      val.trim();
+      if (val.length()!=0)
+        Guid=val;
+      Serial.println();
+      Serial.println(Guid);
+    }
+    else
+    {
+      Guid="";
+    }
+    Serial.println("Got data");
+    return true;
   }
 
   // Software set connection settings
-  void WiFiSet(String ssid, String pwd, String hostname, String deviceconnectionString )
+  void WiFiSet(String ssid, String pwd, String hostname, String deviceconnectionString, String guid )
   {
     Ssid = ssid;
     Passwd = pwd;
     Hostname = hostname;
     IoTHubDeviceConnectionString = deviceconnectionString;
+    Guid = guid;
   }
 
-  // Write data to EEProm but require user notification
-  bool Write2EEPromwithPrompt()
-  {
-    if (!bSerialDebug) 
-      return false;
-    Serial.println("Writing key to EEProm");
-    writeKey();
-    String WiFiData = Ssid +'-'+ Passwd + "-" + Hostname;
-    if(bUseIoTHub)
-    {
-      WiFiData += "-" + IoTHubDeviceConnectionString;
-    }
-    Serial.print("Writing WiFi Config Data to EEProm: ");
-    Serial.println(WiFiData);
+  
 
-    writeWiFi(WiFiData,KEYLENGTH);
 
-    // Test EEProm data
-    if (WiFi.status() != WL_CONNECTED)
-    {
-      WiFi.disconnect();
-      delay(200);
-    }
-    ReadWiFiDataFromEEProm();
-    return WiFiConnect();
-  }
+
 
   // Orchestrate WiFi Connection
-  bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool useIoTHub, bool debug) 
+  bool WiFiConnectwithOptions(int baud, ConnectMode connectMode, bool useIoTHub, bool includeGuid, bool debug) 
   {
     bSerialDebug = debug;
     bUseIoTHub = useIoTHub;
+    bIncludeGuid = includeGuid;
 
     if(bSerialDebug)
     {
@@ -281,7 +556,8 @@ namespace FlashStorage{
       Serial.println(ConnectMode_STR[connectMode]);
     }
 
-
+    bool res;
+    String resStr;
     switch (connectMode)
     {
       case wifi_is_set:
@@ -301,16 +577,34 @@ namespace FlashStorage{
             Serial.println(") at start of EEProm"); 
 
             Serial.println("Getting WiFi config data.");
-            Prompt4WiFiConfigData();
+            res = Prompt4WiFiConfigData();
+            if(res)
+            {
+              res = BtWiFiConnect();
+            }
+            if(!res)
+            {
+              return false;
+            }
+
             Serial.print("Do you wish to flash the EEProm with this WiFi data? [Y/y] [N/n]");
             while (Serial.available() == 0) {}
-            String res = Serial.readString();
-            res.toUpperCase();
-            res.trim();
+            resStr = Serial.readString();
+            resStr.toUpperCase();
+            resStr.trim();
             Serial.println();
-            if (res =="Y")
+            if (resStr =="Y")
             {
-              return Write2EEPromwithPrompt();
+              res =  Write2EEPromwithPrompt();
+              if(res)
+              {
+              res = ReadWiFiDataFromEEProm();
+              }
+              if(res)
+              {
+                res = BtWiFiConnect();
+              }
+              return res;
             }
             else
             {
@@ -320,7 +614,8 @@ namespace FlashStorage{
         }
         else
         {
-          String res="N";
+          String resStr="N";
+          bool res = false;
           if (bSerialDebug)
           {
             Serial.print("Key found. (");
@@ -328,29 +623,46 @@ namespace FlashStorage{
             Serial.println(") at start of EEProm"); 
             Serial.print("Do you wish to reflash the EEProm with new WiFi data? [Y/y] [N/n]");
             while (Serial.available() == 0) {}
-            res = Serial.readString();
-            res.toUpperCase();
-            res.trim();
+            resStr = Serial.readString();
+            resStr.toUpperCase();
+            resStr.trim();
           }
           Serial.println();
-          if (res =="Y")
+          if (resStr =="Y")
           {
-            Prompt4WiFiConfigData();
-            return Write2EEPromwithPrompt();
+            res = Prompt4WiFiConfigData();
+            if(res)
+            {
+              //Check
+              res= WiFiConnect();
+            }
+            if(res)
+            {
+              //Write if check OK
+              res =  Write2EEPromwithPrompt();
+            }
+            if(! res)
+              return false;
           }
-          else
+          res = ReadWiFiDataFromEEProm();
+          if(res)
           {
-            ReadWiFiDataFromEEProm();
-            return WiFiConnect();
+            res= WiFiConnect();
           }
+          return res;
         }
         break;
       case is_defined:
-        WiFiSet(DEFAULT_SSID, DEFAULT_PASSWORD, DEFAULT_HOSTNAME, DEFAULT_DEVICECONNECTIONSTRING);    
+        WiFiSet(DEFAULT_SSID, DEFAULT_PASSWORD, DEFAULT_HOSTNAME, DEFAULT_DEVICECONNECTIONSTRING, DEFAULT_GUID);    
         return WiFiConnect();
         break;
       case serial_prompt:
-        return Prompt4WiFiConfigData();
+        res = Prompt4WiFiConfigData();
+        if(res)
+        {
+          res= WiFiConnect();
+        }
+        return res;
         break;
       case bt_prompt:
         SerialBT.setName(DEFAULT_BT_NAME);
@@ -366,6 +678,10 @@ namespace FlashStorage{
         delay(100);
         String dummy = SerialBT.readString();
         bool resBt =  BTPrompt4WiFiConfigData();
+        if(resBt)
+        {
+          return WiFiConnect();
+        }
         return resBt;
         break;
       
@@ -380,94 +696,9 @@ namespace FlashStorage{
 
 
 
-  void writeWiFi(String Msg,int start)
-  {
-    EEPROM.begin(EEPROM_SIZE);
-    char * msg = const_cast<char*>(Msg.c_str());
-    if ((strlen(msg) )> EEPROM_SIZE )
-    {
-      Serial.println("Message is too big");
-      return;
-    }
-    int len = strlen(msg);
-    for(int i=0; i < len; i++)
-    {
-      byte val = (byte)msg[i];
-      EEPROM.write(start + i, val);
-      delay(100); 
-    }
-    EEPROM.write(start + len, 0);
-    if (EEPROM.commit()) {
-      Serial.println("EEPROM successfully committed");
-    } else {
-      Serial.println("ERROR! EEPROM commit failed");
-    }
-    EEPROM.end();
-  }
 
 
-
-  String readWiFi(int start)
-  {
-    EEPROM.begin(EEPROM_SIZE);
-    int address = start;
-    byte value = 0;
-    String target ="";
-    while (((value = EEPROM.read(address++))!= 0) && (address < EEPROM_SIZE))
-    {
-      char ch = (char)value;
-      target += ch;
-      delay(100);
-    }
-    target.trim();
-    EEPROM.end();
-    return target;
-  }
-
-  // First 4 bytes of EEProm are the key then just read WiFi data.
-  // Else write key and data.
-  void writeKey()
-  {
-    String key = KEY;
-    EEPROM.begin(EEPROM_SIZE);
-    char * msg = const_cast<char*>(key.c_str());
-    int len = KEYLENGTH;
-    for(int i=0; i < len; i++)
-    {
-      byte val = (byte)msg[i];
-      EEPROM.write(i, val);
-      delay(100); 
-    }
-    EEPROM.write(len, 0);
-    if (EEPROM.commit()) {
-      Serial.println("EEPROM key write successfully committed");
-    } else {
-      Serial.println("ERROR! EEPROM key write commit failed");
-    }
-    EEPROM.end();
-  }
-
-  bool readKey()
-  {
-    String key = KEY;
-    EEPROM.begin(EEPROM_SIZE);
-    int address = 0;
-    byte value = 0;
-    String target ="";
-    for (int i=0;i< KEYLENGTH;i++)
-    {
-      byte value  = EEPROM.read(i);
-      char ch = (char)value;
-      target += ch;
-      delay(100);
-    }
-    target.trim();
-    EEPROM.end();
-    if (target==key)
-      return true;
-    else
-      return false;
-  }
+  
 
 
 
